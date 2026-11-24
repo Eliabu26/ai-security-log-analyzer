@@ -1,0 +1,34 @@
+title: Brute Force SSH with Privilege Escalation and Backdoor Account Creation
+id: 5d8e7f9a-1b2c-4d3e-5f6a-7b8c9d0e1f2a
+status: experimental
+description: Detects coordinated SSH brute-force attempts across multiple usernames and source IPs, followed by privilege escalation via sudo to read /etc/shadow and creation of a root-level backdoor user account.
+author: Detection Engineer
+date: 2024-07-25
+logsource:
+  product: linux
+  service: auth
+detection:
+  selection:
+    - log_source: 'sshd'
+      event_type: 'failed_password'
+      count(source_ip) >= 3
+      count(target_user) >= 3
+      timeframe: 30m
+  selection2:
+    - log_source: 'sudo'
+      command: '/bin/cat /etc/shadow'
+  selection3:
+    - log_source: 'useradd'
+      new_user_uid: '0'
+      new_user_gid: '0'
+  condition: selection and (selection2 or selection3)
+fields:
+  - source_ip
+  - target_user
+  - command
+  - new_user_name
+  - new_user_uid
+falsepositives:
+  - Legitimate password spraying during security testing (ensure authorized)
+  - Automated backup or maintenance scripts (rarely involve /etc/shadow access and UID 0 account creation)
+level: critical
